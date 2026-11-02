@@ -5,7 +5,7 @@ import os
 
 # Configuração das 5 playlists e das respetivas variáveis de ambiente do Discord
 PLAYLISTS = [
-    {"lane": "Top Lane", "id": "PLA13YOA8Fal8", "env_var": "WEBHOOK_TOP"},
+    {"lane": "Top Lane", "id": "PLOoaS3fNpmkI", "env_var": "WEBHOOK_TOP"},
     {"lane": "Jungle",   "id": "PLLgMZW4S1TFY", "env_var": "WEBHOOK_JUNGLE"},
     {"lane": "Mid Lane", "id": "PLWVVe2y75Idc",    "env_var": "WEBHOOK_MID"},
     {"lane": "ADC",      "id": "PLUJSB1435Otk",    "env_var": "WEBHOOK_ADC"},
