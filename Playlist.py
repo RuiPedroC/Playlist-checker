@@ -6,11 +6,11 @@ import os
 # Configuração das 5 playlists e das respetivas variáveis de ambiente do Discord
 PLAYLISTS = [
     {"lane": "Top Lane", "id": "PLA13YOA8Fal8", "env_var": "WEBHOOK_TOP"},
-    {"lane": "Jungle",   "id": "COLOCA_ID_JUNGLE", "env_var": "WEBHOOK_JUNGLE"},
-    {"lane": "Mid Lane", "id": "COLOCA_ID_MID",    "env_var": "WEBHOOK_MID"},
-    {"lane": "ADC",      "id": "COLOCA_ID_ADC",    "env_var": "WEBHOOK_ADC"},
-    {"lane": "Support",  "id": "COLOCA_ID_SUPP",   "env_var": "WEBHOOK_SUPP"},
-    {"lane": "Overall",  "id": "COLOCA_ID_OVERALL","env_var": "WEBHOOK_OVERALL"},
+    {"lane": "Jungle",   "id": "PLLgMZW4S1TFY", "env_var": "WEBHOOK_JUNGLE"},
+    {"lane": "Mid Lane", "id": "PLWVVe2y75Idc",    "env_var": "WEBHOOK_MID"},
+    {"lane": "ADC",      "id": "PLUJSB1435Otk",    "env_var": "WEBHOOK_ADC"},
+    {"lane": "Support",  "id": "PLfnM8GCc1ktg",   "env_var": "WEBHOOK_SUPP"},
+    {"lane": "Overall",  "id": "PLA13YOA8Fal8","env_var": "WEBHOOK_OVERALL"},
 ]
 STATE_FILE = "last_videos.json"
 
