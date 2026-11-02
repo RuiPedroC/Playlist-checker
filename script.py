@@ -3,14 +3,14 @@ import xml.etree.ElementTree as ET
 import json
 import os
 
-# Configuração das 5 playlists e das respetivas variáveis de ambiente do Discord
+# Configuração das playlists e das respetivas variáveis de ambiente do Discord
 PLAYLISTS = [
     {"lane": "Top Lane", "id": "PLOoaS3fNpmkI", "env_var": "WEBHOOK_TOP"},
     {"lane": "Jungle",   "id": "PLLgMZW4S1TFY", "env_var": "WEBHOOK_JUNGLE"},
-    {"lane": "Mid Lane", "id": "PLWVVe2y75Idc",    "env_var": "WEBHOOK_MID"},
-    {"lane": "ADC",      "id": "PLUJSB1435Otk",    "env_var": "WEBHOOK_ADC"},
-    {"lane": "Support",  "id": "PLfnM8GCc1ktg",   "env_var": "WEBHOOK_SUPP"},
-    {"lane": "Overall",  "id": "PLA13YOA8Fal8","env_var": "WEBHOOK_OVERALL"},
+    {"lane": "Mid Lane", "id": "PLWVVe2y75Idc", "env_var": "WEBHOOK_MID"},
+    {"lane": "ADC",      "id": "PLUJSB1435Otk", "env_var": "WEBHOOK_ADC"},
+    {"lane": "Support",  "id": "PLfnM8GCc1ktg", "env_var": "WEBHOOK_SUPP"},
+    {"lane": "Overall",  "id": "PLA13YOA8Fal8", "env_var": "WEBHOOK_OVERALL"},
 ]
 STATE_FILE = "last_videos.json"
 
@@ -23,7 +23,7 @@ if os.path.exists(STATE_FILE):
     except Exception:
         last_videos = {}
 
-# Processa cada uma das 5 playlists
+# Processa cada uma das playlists
 for item in PLAYLISTS:
     lane_name = item["lane"]
     playlist_id = item["id"]
@@ -47,14 +47,25 @@ for item in PLAYLISTS:
         if not entries:
             continue
 
-        # Obtém o vídeo mais recente da playlist
-        latest = entries[0]
-        video_id = latest.find('yt:videoId', ns).text
-        title = latest.find('atom:title', ns).text
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        last_id = last_videos.get(playlist_id)
 
-        # Verifica se o vídeo é novo para esta playlist
-        if last_videos.get(playlist_id) != video_id:
+        # Guarda todos os vídeos novos ainda não enviados
+        new_entries = []
+        for entry in entries:
+            v_id = entry.find('yt:videoId', ns).text
+            if v_id == last_id:
+                break  # Para assim que encontra o último vídeo registado
+            new_entries.append(entry)
+
+        # Inverte para enviar do vídeo mais antigo para o mais recente
+        new_entries.reverse()
+
+        # Envia uma notificação no Discord para cada vídeo novo
+        for entry in new_entries:
+            video_id = entry.find('yt:videoId', ns).text
+            title = entry.find('atom:title', ns).text
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
+
             payload = json.dumps({
                 "content": f"🎥 **Novo vídeo de coaching ({lane_name})!**\n**{title}**\n{video_url}"
             }).encode('utf-8')
@@ -66,7 +77,7 @@ for item in PLAYLISTS:
             )
             urllib.request.urlopen(disc_req)
 
-            # Atualiza o estado
+            # Atualiza o registo para cada vídeo enviado
             last_videos[playlist_id] = video_id
             print(f"[{lane_name}] Novo aviso enviado: {title}")
 
