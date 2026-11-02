@@ -2,35 +2,39 @@ import urllib.request
 import xml.etree.ElementTree as ET
 import json
 import os
+import time
 
-# Configuração das playlists e das respetivas variáveis de ambiente do Discord
+
 PLAYLISTS = [
-    {"lane": "Top Lane", "id": "PLOoaS3fNpmkI", "env_var": "WEBHOOK_TOP"},
-    {"lane": "Jungle",   "id": "PLLgMZW4S1TFY", "env_var": "WEBHOOK_JUNGLE"},
-    {"lane": "Mid Lane", "id": "PLWVVe2y75Idc", "env_var": "WEBHOOK_MID"},
-    {"lane": "ADC",      "id": "PLUJSB1435Otk", "env_var": "WEBHOOK_ADC"},
-    {"lane": "Support",  "id": "PLfnM8GCc1ktg", "env_var": "WEBHOOK_SUPP"},
-    {"lane": "Overall",  "id": "PLA13YOA8Fal8", "env_var": "WEBHOOK_OVERALL"},
+    {"lane": "Top Lane", "id": "PLOoaS3fNpmkI...", "env_var": "WEBHOOK_TOP"},
+    {"lane": "Jungle",   "id": "PLLgMZW4S1TFY...", "env_var": "WEBHOOK_JUNGLE"},
+    {"lane": "Mid Lane", "id": "PLWVVe2y75Idc...", "env_var": "WEBHOOK_MID"},
+    {"lane": "ADC",      "id": "PLUJSB1435Otk...", "env_var": "WEBHOOK_ADC"},
+    {"lane": "Support",  "id": "PLfnM8GCc1ktg...", "env_var": "WEBHOOK_SUPP"},
+    {"lane": "Overall",  "id": "PLA13YOA8Fal8...", "env_var": "WEBHOOK_OVERALL"},
 ]
 STATE_FILE = "last_videos.json"
 
 # Carrega o histórico de vídeos enviados
-last_videos = {}
+sent_videos = {}
 if os.path.exists(STATE_FILE):
     try:
-        with open(STATE_FILE, "r") as f:
-            last_videos = json.load(f)
-    except Exception:
-        last_videos = {}
+        with open(STATE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            # Compatibilidade caso o ficheiro antigo tenha strings em vez de listas
+            for k, v in data.items():
+                sent_videos[k] = v if isinstance(v, list) else [v]
+    except Exception as e:
+        print(f"Erro ao ler {STATE_FILE}: {e}")
+        sent_videos = {}
 
-# Processa cada uma das playlists
 for item in PLAYLISTS:
     lane_name = item["lane"]
     playlist_id = item["id"]
     webhook_url = os.environ.get(item["env_var"])
 
-    if not webhook_url or playlist_id.startswith("COLOCA_ID"):
-        print(f"[{lane_name}] Ignorado (ID ou Webhook em falta).")
+    if not webhook_url or len(playlist_id) < 20:
+        print(f"[{lane_name}] Ignorado (Webhook em falta ou ID de playlist incompleto: {playlist_id}).")
         continue
 
     rss_url = f"https://www.youtube.com/feeds/videos.xml?playlist_id={playlist_id}"
@@ -45,22 +49,25 @@ for item in PLAYLISTS:
         entries = root.findall('atom:entry', ns)
 
         if not entries:
+            print(f"[{lane_name}] Playlist vazia no RSS.")
             continue
 
-        last_id = last_videos.get(playlist_id)
+        known_ids = sent_videos.get(playlist_id, [])
 
-        # Guarda todos os vídeos novos ainda não enviados
+        # Filtra todos os vídeos que ainda não estão na lista de conhecidos
         new_entries = []
         for entry in entries:
             v_id = entry.find('yt:videoId', ns).text
-            if v_id == last_id:
-                break  # Para assim que encontra o último vídeo registado
-            new_entries.append(entry)
+            if v_id not in known_ids:
+                new_entries.append(entry)
 
-        # Inverte para enviar do vídeo mais antigo para o mais recente
+        if not new_entries:
+            print(f"[{lane_name}] Sem vídeos novos.")
+            continue
+
+        # Inverte para enviar do mais antigo para o mais recente
         new_entries.reverse()
 
-        # Envia uma notificação no Discord para cada vídeo novo
         for entry in new_entries:
             video_id = entry.find('yt:videoId', ns).text
             title = entry.find('atom:title', ns).text
@@ -77,13 +84,15 @@ for item in PLAYLISTS:
             )
             urllib.request.urlopen(disc_req)
 
-            # Atualiza o registo para cada vídeo enviado
-            last_videos[playlist_id] = video_id
+            # Regista o vídeo como enviado
+            known_ids.append(video_id)
+            sent_videos[playlist_id] = known_ids[-100:]  # Mantém os últimos 100 IDs
             print(f"[{lane_name}] Novo aviso enviado: {title}")
+            time.sleep(1)  # Pausa de 1s para evitar Rate Limit do Discord
 
     except Exception as e:
         print(f"[{lane_name}] Erro ao verificar: {e}")
 
 # Guarda o ficheiro de histórico atualizado
-with open(STATE_FILE, "w") as f:
-    json.dump(last_videos, f, indent=2)
+with open(STATE_FILE, "w", encoding="utf-8") as f:
+    json.dump(sent_videos, f, indent=2)
