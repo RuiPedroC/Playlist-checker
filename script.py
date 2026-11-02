@@ -4,28 +4,25 @@ import json
 import os
 import time
 
-
 PLAYLISTS = [
-    {"lane": "Top Lane", "id": "PLOoaS3fNpmkI...", "env_var": "WEBHOOK_TOP"},
-    {"lane": "Jungle",   "id": "PLLgMZW4S1TFY...", "env_var": "WEBHOOK_JUNGLE"},
-    {"lane": "Mid Lane", "id": "PLWVVe2y75Idc...", "env_var": "WEBHOOK_MID"},
-    {"lane": "ADC",      "id": "PLUJSB1435Otk...", "env_var": "WEBHOOK_ADC"},
-    {"lane": "Support",  "id": "PLfnM8GCc1ktg...", "env_var": "WEBHOOK_SUPP"},
-    {"lane": "Overall",  "id": "PLA13YOA8Fal8...", "env_var": "WEBHOOK_OVERALL"},
+    {"lane": "Top Lane", "id": "PLOoaS3fNpmkI", "env_var": "WEBHOOK_TOP"},
+    {"lane": "Jungle",   "id": "PLLgMZW4S1TFY", "env_var": "WEBHOOK_JUNGLE"},
+    {"lane": "Mid Lane", "id": "PLWVVe2y75Idc", "env_var": "WEBHOOK_MID"},
+    {"lane": "ADC",      "id": "PLUJSB1435Otk", "env_var": "WEBHOOK_ADC"},
+    {"lane": "Support",  "id": "PLfnM8GCc1ktg", "env_var": "WEBHOOK_SUPP"},
+    {"lane": "Overall",  "id": "PLA13YOA8Fal8", "env_var": "WEBHOOK_OVERALL"},
 ]
 STATE_FILE = "last_videos.json"
 
-# Carrega o histórico de vídeos enviados
+# Carrega o histórico de vídeos enviados (suporta formato antigo e novo)
 sent_videos = {}
 if os.path.exists(STATE_FILE):
     try:
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            # Compatibilidade caso o ficheiro antigo tenha strings em vez de listas
             for k, v in data.items():
                 sent_videos[k] = v if isinstance(v, list) else [v]
-    except Exception as e:
-        print(f"Erro ao ler {STATE_FILE}: {e}")
+    except Exception:
         sent_videos = {}
 
 for item in PLAYLISTS:
@@ -33,8 +30,8 @@ for item in PLAYLISTS:
     playlist_id = item["id"]
     webhook_url = os.environ.get(item["env_var"])
 
-    if not webhook_url or len(playlist_id) < 20:
-        print(f"[{lane_name}] Ignorado (Webhook em falta ou ID de playlist incompleto: {playlist_id}).")
+    if not webhook_url or playlist_id.startswith("COLOCA_ID"):
+        print(f"[{lane_name}] Ignorado (ID ou Webhook em falta).")
         continue
 
     rss_url = f"https://www.youtube.com/feeds/videos.xml?playlist_id={playlist_id}"
@@ -49,12 +46,12 @@ for item in PLAYLISTS:
         entries = root.findall('atom:entry', ns)
 
         if not entries:
-            print(f"[{lane_name}] Playlist vazia no RSS.")
+            print(f"[{lane_name}] Sem vídeos no feed RSS.")
             continue
 
         known_ids = sent_videos.get(playlist_id, [])
 
-        # Filtra todos os vídeos que ainda não estão na lista de conhecidos
+        # Percorre TODOS os vídeos do feed (sem fazer break no primeiro conhecido!)
         new_entries = []
         for entry in entries:
             v_id = entry.find('yt:videoId', ns).text
@@ -62,12 +59,10 @@ for item in PLAYLISTS:
                 new_entries.append(entry)
 
         if not new_entries:
-            print(f"[{lane_name}] Sem vídeos novos.")
+            print(f"[{lane_name}] Nenhum vídeo novo.")
             continue
 
-        # Inverte para enviar do mais antigo para o mais recente
-        new_entries.reverse()
-
+        # Envia uma notificação no Discord para cada vídeo novo
         for entry in new_entries:
             video_id = entry.find('yt:videoId', ns).text
             title = entry.find('atom:title', ns).text
@@ -84,11 +79,11 @@ for item in PLAYLISTS:
             )
             urllib.request.urlopen(disc_req)
 
-            # Regista o vídeo como enviado
+            # Adiciona o vídeo à lista de já enviados
             known_ids.append(video_id)
-            sent_videos[playlist_id] = known_ids[-100:]  # Mantém os últimos 100 IDs
+            sent_videos[playlist_id] = known_ids
             print(f"[{lane_name}] Novo aviso enviado: {title}")
-            time.sleep(1)  # Pausa de 1s para evitar Rate Limit do Discord
+            time.sleep(1)
 
     except Exception as e:
         print(f"[{lane_name}] Erro ao verificar: {e}")
